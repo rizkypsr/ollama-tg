@@ -8,27 +8,6 @@ services:
     env_file:
       - ./.env
     volumes:
-      - ollama-tg:/code/  # Mounting a volume for SQLite database
-
-  ollama-api:
-    image: ollama/ollama:latest
-    container_name: ollama-server
-    volumes:
-      - ./ollama:/root/.ollama
-    
-    # Uncomment to enable NVIDIA GPU
-    # Otherwise runs on CPU only:
-
-    # deploy:
-    #   resources:
-    #     reservations:
-    #       devices:
-    #         - driver: nvidia
-    #           count: all
-    #           capabilities: [gpu]
-
-    restart: always
-    ports:
-      - '11434:11434'
+      - ollama-tg:/code/ # Mounting a volume for SQLite database
 volumes:
   ollama-tg:

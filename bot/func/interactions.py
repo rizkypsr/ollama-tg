@@ -17,6 +17,7 @@ ollama_base_url = os.getenv("OLLAMA_BASE_URL")
 ollama_port = os.getenv("OLLAMA_PORT", "11434")
 log_level_str = os.getenv("LOG_LEVEL", "INFO")
 allow_all_users_in_groups = bool(int(os.getenv("ALLOW_ALL_USERS_IN_GROUPS", "0")))
+allow_all_users_in_private = bool(int(os.getenv("ALLOW_ALL_USERS_IN_PRIVATE", "0")))
 log_levels = list(logging._levelToName.values())
 timeout = os.getenv("TIMEOUT", "3000")
 if log_level_str not in log_levels:
@@ -108,7 +109,8 @@ async def generate(payload: dict, modelname: str, prompt: str):
         ollama_payload = {
             "model": modelname,
             "messages": payload.get("messages", []),
-            "stream": payload.get("stream", True)
+            "stream": payload.get("stream", True),
+            "keep_alive": payload.get("keep_alive", "5h"),
         }
 
         try:
@@ -176,6 +178,11 @@ def perms_allowed(func):
     @wraps(func)
     async def wrapper(message: types.Message = None, query: types.CallbackQuery = None):
         user_id = message.from_user.id if message else query.from_user.id
+
+        logging.info(
+                    f"[MSG_TYPE] {message.chat.type} | [PRIVATE] {allow_all_users_in_private} | [GROUP] {allow_all_users_in_groups}"
+                )
+
         if user_id in admin_ids or user_id in allowed_ids:
             if message:
                 return await func(message)
@@ -183,11 +190,16 @@ def perms_allowed(func):
                 return await func(query=query)
         else:
             if message:
-                if message and message.chat.type in ["supergroup", "group"]:
+                if message.chat.type in ["supergroup", "group"]:
                     if allow_all_users_in_groups:
                         return await func(message)
                     return
-                await message.answer("Access Denied")
+                elif message.chat.type in ["private"]:
+                    if allow_all_users_in_private:
+                        return await func(message)
+                    await message.answer("Access Denied")
+                else:
+                    await message.answer("Access Denied")
             elif query:
                 if message and message.chat.type in ["supergroup", "group"]:
                     return
